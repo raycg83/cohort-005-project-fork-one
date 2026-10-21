@@ -71,11 +71,8 @@ module.exports = {
         "No dependency cycles. Scope to `^${R}/` if you want to allow cycles outside packages.",
       severity: "error",
       from: {},
-      // A cycle closed only by `import type` is erased at build time.
-      to: {
-        circular: true,
-        viaOnly: { dependencyTypesNot: ["type-only"] },
-      },
+      // A type-only cycle compiles away, so it is not one.
+      to: { circular: true, viaOnly: { dependencyTypesNot: ["type-only"] } },
     },
 
     // --- Layering (optional, off by default) ----------------------------------
@@ -109,11 +106,11 @@ module.exports = {
       },
     },
     {
-      name: "modules-no-components",
+      name: "server-code-no-components",
       comment:
-        "A module owns its data's shape and knows nothing of the UI. Define the type in the module and export it from an entry point; the component imports it from there.",
+        "Modules and app/lib hold data and logic; components depend on them, never the reverse. A type a component and a module share lives in the module.",
       severity: "error",
-      from: { path: `^${R}/` },
+      from: { path: "^app/(modules|lib)/" },
       to: { path: "^app/components/" },
     },
     {
@@ -127,7 +124,8 @@ module.exports = {
   ],
   options: {
     doNotFollow: { path: "node_modules" },
-    // Count `import type` too: a type import is still a dependency.
+    // Type-only imports count: a server file that imports a component's type
+    // still depends on the component.
     tsPreCompilationDeps: true,
     tsConfig: { fileName: "tsconfig.json" },
     enhancedResolveOptions: {

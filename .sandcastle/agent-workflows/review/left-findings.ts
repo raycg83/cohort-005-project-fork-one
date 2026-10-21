@@ -1,49 +1,54 @@
-// The verdict's list of the findings the review left. A finding inside the
-// diff gets one line here, because its inline comment carries the
-// explanation. A finding outside the diff cannot be an inline comment, so it
-// is listed here in full.
+import type { ReviewComment } from "./review-schema";
 
-export type Finding = {
-  path: string;
-  line: number;
-  rule: string;
-  body: string;
+const HEADINGS = { standards: "## Standards", spec: "## Spec" } as const;
+
+const indent = (text: string): string =>
+  text
+    .split("\n")
+    .map((line) => (line ? `  ${line}` : line))
+    .join("\n");
+
+const entry = (comment: ReviewComment, inline: boolean): string => {
+  // A title is a phrase: a newline in it would break the list item.
+  const title = comment.title.replace(/\s+/g, " ").trim();
+  const head = `- **${title}**, at \`${comment.path}:${comment.line}\``;
+  return inline ? head : `${head}\n\n${indent(comment.body)}`;
 };
 
-export const LEFT_HEADING = "## Left for you";
+const leftList = (posted: ReviewComment[], dropped: ReviewComment[]): string =>
+  [
+    "**Left**",
+    "",
+    ...posted.map((comment) => entry(comment, true)),
+    ...dropped.map((comment) => entry(comment, false)),
+  ].join("\n");
 
-// A rule is a phrase, so it goes on one line. A body may hold a code block,
-// so its lines are kept and indented to stay inside the list item.
-const oneLine = (text: string) => text.replace(/\s+/g, " ").trim();
-const indented = (text: string) => text.replace(/\n/g, "\n  ");
+// The verdict lists each finding the review left. One posted inline gets a
+// single line, since its comment carries the reasoning; one GitHub would not
+// take inline (its line is outside the diff) appears here in full, because
+// the verdict is its only home. Each list goes at the end of its axis's
+// section; with no such section, the lists go at the end.
+export const addLeftFindings = (
+  verdict: string,
+  posted: ReviewComment[],
+  dropped: ReviewComment[]
+): string => {
+  const sections = verdict.split(/^(?=## )/m);
 
-export function leftFindings(inline: Finding[], outside: Finding[]): string {
-  if (inline.length === 0 && outside.length === 0) return "";
-  const lines = [LEFT_HEADING, ""];
-  if (inline.length > 0) {
-    lines.push("Each one is explained in its inline comment.", "");
-    for (const { path, line, rule } of inline) {
-      lines.push(`- \`${path}:${line}\`: ${oneLine(rule)}`);
+  for (const axis of ["standards", "spec"] as const) {
+    const ofAxis = (comment: ReviewComment) => comment.axis === axis;
+    if (![...posted, ...dropped].some(ofAxis)) continue;
+    const list = leftList(posted.filter(ofAxis), dropped.filter(ofAxis));
+
+    const index = sections.findIndex((section) =>
+      section.startsWith(HEADINGS[axis])
+    );
+    if (index === -1) {
+      sections.push(`\n${HEADINGS[axis]}\n\n${list}\n`);
+      continue;
     }
-    lines.push("");
+    sections[index] = `${sections[index].trimEnd()}\n\n${list}\n\n`;
   }
-  if (outside.length > 0) {
-    lines.push("Outside the diff, so not inline:", "");
-    for (const { path, line, rule, body } of outside) {
-      lines.push(
-        `- \`${path}:${line}\`: **${oneLine(rule)}.** ${indented(body)}`
-      );
-    }
-    lines.push("");
-  }
-  return lines.join("\n");
-}
 
-// Puts the list before "Rules this review wanted", which is the retro's, or
-// at the end when the verdict has no such section.
-export function insertLeftFindings(verdict: string, section: string): string {
-  if (!section) return verdict;
-  const rules = verdict.search(/^## Rules this review wanted/m);
-  if (rules === -1) return `${verdict.trimEnd()}\n\n${section}`;
-  return `${verdict.slice(0, rules)}${section}\n${verdict.slice(rules)}`;
-}
+  return sections.join("").trimEnd() + "\n";
+};

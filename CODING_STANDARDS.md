@@ -42,12 +42,16 @@ Test setup calls the module's own functions. When the function you need does
 not exist, add it to the module rather than inserting rows directly, so a
 change to how the module stores its data leaves its tests alone.
 
-## Keep files under 5000 tokens
+## A split the token check forced is in scope
 
 Keep every file under 5000 tokens. A file listed in
 `scripts/file-tokens-baseline.json` was already over and may stay there, but
-it may not grow: put new code in a new file. Splitting it is a ticket of its
-own.
+it may not grow: put new code in a new file. The pre-commit hook
+(`scripts/check-file-tokens.js`) enforces both.
+
+When a change does split a file, the split belongs to its ticket. Review it as
+a move: the code arrives unchanged in its new home, and the new files follow
+every rule here, function length included.
 
 ## A module that reads the database takes it as an argument
 
@@ -103,6 +107,26 @@ Anything the browser can read is public. A secret is read only in a
 Rendering is for working out what the output is, not for doing something.
 Anything that touches the outside world belongs in an effect or an action.
 
+## Key a controlled field by the record it edits
+
+A form field whose value lives in `useState` keeps that state when the route
+changes underneath it. Give the component a `key` of the record's id, so
+moving to another record starts a fresh draft. The lesson notes box once
+carried lesson A's draft onto lesson B, and one click on Save overwrote B's
+note.
+
+```tsx
+return <LessonNote key={lesson.id} note={note} />;
+```
+
+## Client and server share one normalisation
+
+When the server trims, lowercases or measures a value before it stores it,
+the client calls the same function before it compares or counts. Put the
+function in a plain `app/lib/` or module file both sides import. The notes
+box once compared the raw text against the trimmed note the server kept, so
+"Unsaved changes" never cleared after a save.
+
 ## Derive, do not store
 
 If a value can be worked out from another value you already hold, work it out.
@@ -118,14 +142,6 @@ const [items, setItems] = useState(rows);
 const count = items.length;
 ```
 
-## State seeded from loader data resets when its source changes
-
-`useState(note?.body)` reads its argument once. React keeps the component, and
-its state, when the route navigates to another record, so the old value
-stays. Key the component by the record it edits (`<LessonNote
-key={lesson.id} />`), so a new record mounts a new component. The lesson note
-kept the previous lesson's draft, and Save wrote it into the wrong lesson.
-
 ## Moved code meets the standards it lands under
 
 A move is its own commit, with no other change in it, so a reviewer can tell
@@ -133,9 +149,15 @@ the move from the edit. The code it moves becomes this change's code. Bring it
 up to these standards in the same PR. When a fix is too big for the PR, say so
 in the PR body and file a ticket for it.
 
-## A comment explains why
+## A decision lives in an ADR, not a comment
 
-Name and extract until a comment is unnecessary. A comment earns its place
-only for a _why_ the code cannot express: a constraint, a decision, a link to
-the ADR behind it. A comment that restates _what_ the code does goes stale the
-first time the code changes.
+Name and extract until the code needs no comment. A product or design
+decision ("notes sit under the video so the Student can write while they
+watch") goes in an ADR in `docs/adr/`, where it can be found and
+superseded. A comment holding one goes stale the moment someone changes the
+code without reading it.
+
+When a diff touches a comment that records a decision, delete the comment,
+write the ADR if the decision still stands, and name both in the PR. Several
+such comments in one area mean decisions are skipping the ADR step: flag
+that in the PR too.

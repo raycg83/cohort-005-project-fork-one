@@ -1,81 +1,94 @@
 import { describe, expect, it } from "vitest";
-import { insertLeftFindings, leftFindings } from "./left-findings";
+import { addLeftFindings } from "./left-findings";
+import type { ReviewComment } from "./review-schema";
 
-const barrel = {
-  path: "app/modules/x/course.server.ts",
-  line: 1,
-  rule: "Don't write barrel files",
-  body: "This file only re-exports `lib/course.ts`.",
-};
-const elsewhere = {
-  path: "app/routes/x.tsx",
-  line: 400,
-  rule: "A route does not query data a module owns",
-  body: "Ask the module.",
-};
-
-describe("leftFindings", () => {
-  it("is empty when nothing was left", () => {
-    expect(leftFindings([], [])).toBe("");
-  });
-
-  it("gives an inline finding one line, without its body", () => {
-    const section = leftFindings([barrel], []);
-    expect(section).toContain(
-      "- `app/modules/x/course.server.ts:1`: Don't write barrel files"
-    );
-    expect(section).not.toContain("only re-exports");
-  });
-
-  it("lists a finding outside the diff in full", () => {
-    expect(leftFindings([], [elsewhere])).toContain(
-      "- `app/routes/x.tsx:400`: **A route does not query data a module owns.** Ask the module."
-    );
-  });
-
-  it("keeps a rule with newlines on its bullet line", () => {
-    const rule = "Don't write\n  barrel files ";
-    expect(leftFindings([{ ...barrel, rule }], [])).toContain(
-      "- `app/modules/x/course.server.ts:1`: Don't write barrel files\n"
-    );
-    expect(leftFindings([], [{ ...elsewhere, rule }])).toContain(
-      "**Don't write barrel files.**"
-    );
-  });
-
-  it("indents a multi-line body so it stays inside its list item", () => {
-    const body = "Ask the module:\n\n```ts\ngetCourse(id);\n```";
-    expect(leftFindings([], [{ ...elsewhere, body }])).toContain(
-      "**A route does not query data a module owns.** Ask the module:\n  \n  ```ts\n  getCourse(id);\n  ```\n"
-    );
-  });
+const finding = (overrides: Partial<ReviewComment>): ReviewComment => ({
+  axis: "standards",
+  title: "Server module imports a UI component",
+  path: "app/modules/a/lib/b.server.ts",
+  line: 4,
+  body: "**Wrong direction.**\n\nMove the type.",
+  ...overrides,
 });
 
-describe("insertLeftFindings", () => {
-  const section = "## Left for you\n\n- one\n";
+const verdict = [
+  "## Standards: CHANGES REQUESTED",
+  "One line.",
+  "",
+  "## Spec: PASS",
+  "Met.",
+  "",
+  "## Rules this review wanted and could not find",
+  "- None.",
+  "",
+].join("\n");
 
-  it("goes before the rules the review wanted", () => {
-    const verdict = "## Spec: PASS\n\n## Rules this review wanted\n\n- none\n";
-    expect(insertLeftFindings(verdict, section)).toBe(
-      "## Spec: PASS\n\n## Left for you\n\n- one\n\n## Rules this review wanted\n\n- none\n"
+describe("addLeftFindings", () => {
+  it("leaves a verdict with no findings unchanged", () => {
+    expect(addLeftFindings(verdict, [], [])).toBe(verdict);
+  });
+
+  it("lists an inline finding by title and line only", () => {
+    const result = addLeftFindings(verdict, [finding({})], []);
+
+    expect(result).toContain(
+      "One line.\n\n**Left**\n\n- **Server module imports a UI component**, at `app/modules/a/lib/b.server.ts:4`\n\n## Spec: PASS"
+    );
+    expect(result).not.toContain("Move the type.");
+  });
+
+  it("writes a dropped finding out in full, indented under its entry", () => {
+    const result = addLeftFindings(verdict, [], [finding({})]);
+
+    expect(result).toContain(
+      "- **Server module imports a UI component**, at `app/modules/a/lib/b.server.ts:4`\n\n  **Wrong direction.**\n\n  Move the type.\n\n## Spec: PASS"
     );
   });
 
-  it("ignores the rules heading quoted mid-line", () => {
-    const verdict =
-      "See `## Rules this review wanted` below.\n\n## Rules this review wanted\n\n- none\n";
-    expect(insertLeftFindings(verdict, section)).toBe(
-      "See `## Rules this review wanted` below.\n\n## Left for you\n\n- one\n\n## Rules this review wanted\n\n- none\n"
+  it("puts each finding under its own axis", () => {
+    const result = addLeftFindings(
+      verdict,
+      [finding({ axis: "spec", title: "Scope creep" })],
+      []
+    );
+
+    expect(result).toContain(
+      "## Standards: CHANGES REQUESTED\nOne line.\n\n## Spec"
+    );
+    expect(result).toContain(
+      "Met.\n\n**Left**\n\n- **Scope creep**, at `app/modules/a/lib/b.server.ts:4`\n\n## Rules"
     );
   });
 
-  it("goes at the end when there is no rules section", () => {
-    expect(insertLeftFindings("## Spec: PASS\n", section)).toBe(
-      "## Spec: PASS\n\n## Left for you\n\n- one\n"
+  it("lists inline findings before dropped ones", () => {
+    const result = addLeftFindings(
+      verdict,
+      [finding({ title: "Inline" })],
+      [finding({ title: "Dropped" })]
+    );
+
+    expect(result.indexOf("**Inline**")).toBeLessThan(
+      result.indexOf("**Dropped**")
     );
   });
 
-  it("leaves the verdict alone when nothing was left", () => {
-    expect(insertLeftFindings("## Spec: PASS\n", "")).toBe("## Spec: PASS\n");
+  it("keeps a title with newlines on one line", () => {
+    const result = addLeftFindings(
+      verdict,
+      [finding({ title: "Server module\n  imports a UI component " })],
+      []
+    );
+
+    expect(result).toContain(
+      "- **Server module imports a UI component**, at `app/modules/a/lib/b.server.ts:4`\n"
+    );
+  });
+
+  it("adds the axis heading when the verdict has none", () => {
+    const result = addLeftFindings("No verdict.\n", [finding({})], []);
+
+    expect(result).toBe(
+      "No verdict.\n\n## Standards\n\n**Left**\n\n- **Server module imports a UI component**, at `app/modules/a/lib/b.server.ts:4`\n"
+    );
   });
 });
