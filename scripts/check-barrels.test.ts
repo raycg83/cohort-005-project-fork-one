@@ -37,6 +37,21 @@ export type { Course } from "./lib/course";
     expect(stderr).toContain(join("thing", "course.server.ts"));
   });
 
+  it("fails an entry point that imports bindings and exports them", () => {
+    const source = `import { fn } from "./lib/impl";
+export { fn };
+`;
+    expect(check({ "index.ts": source }).status).toBe(1);
+  });
+
+  it("passes an entry point that exports its own declarations", () => {
+    const source = `import { slugify } from "./lib/impl";
+const toSlug = (title: string) => slugify(title);
+export { toSlug };
+`;
+    expect(check({ "index.ts": source }).status).toBe(0);
+  });
+
   it("fails an entry point that re-exports a whole file", () => {
     expect(check({ "index.ts": `export * from "./lib/impl";\n` }).status).toBe(
       1

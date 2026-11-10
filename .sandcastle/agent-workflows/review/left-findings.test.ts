@@ -32,6 +32,23 @@ describe("leftFindings", () => {
       "- `app/routes/x.tsx:400`: **A route does not query data a module owns.** Ask the module."
     );
   });
+
+  it("keeps a rule with newlines on its bullet line", () => {
+    const rule = "Don't write\n  barrel files ";
+    expect(leftFindings([{ ...barrel, rule }], [])).toContain(
+      "- `app/modules/x/course.server.ts:1`: Don't write barrel files\n"
+    );
+    expect(leftFindings([], [{ ...elsewhere, rule }])).toContain(
+      "**Don't write barrel files.**"
+    );
+  });
+
+  it("indents a multi-line body so it stays inside its list item", () => {
+    const body = "Ask the module:\n\n```ts\ngetCourse(id);\n```";
+    expect(leftFindings([], [{ ...elsewhere, body }])).toContain(
+      "**A route does not query data a module owns.** Ask the module:\n  \n  ```ts\n  getCourse(id);\n  ```\n"
+    );
+  });
 });
 
 describe("insertLeftFindings", () => {
@@ -41,6 +58,14 @@ describe("insertLeftFindings", () => {
     const verdict = "## Spec: PASS\n\n## Rules this review wanted\n\n- none\n";
     expect(insertLeftFindings(verdict, section)).toBe(
       "## Spec: PASS\n\n## Left for you\n\n- one\n\n## Rules this review wanted\n\n- none\n"
+    );
+  });
+
+  it("ignores the rules heading quoted mid-line", () => {
+    const verdict =
+      "See `## Rules this review wanted` below.\n\n## Rules this review wanted\n\n- none\n";
+    expect(insertLeftFindings(verdict, section)).toBe(
+      "See `## Rules this review wanted` below.\n\n## Left for you\n\n- one\n\n## Rules this review wanted\n\n- none\n"
     );
   });
 

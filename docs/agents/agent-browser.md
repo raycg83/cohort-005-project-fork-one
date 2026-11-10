@@ -21,7 +21,8 @@ time:
 
 ```bash
 (npm run dev > /tmp/dev.log 2>&1 &)
-until curl -sf -o /dev/null http://localhost:5173/; do sleep 0.5; done
+for i in $(seq 60); do curl -sf -o /dev/null http://localhost:5173/ && break; sleep 0.5; done
+curl -sf -o /dev/null http://localhost:5173/ || { cat /tmp/dev.log; exit 1; }
 ```
 
 Most pages need a user in the session. Pick one from the seeded database, then
@@ -29,13 +30,14 @@ post to the route the DevUI panel uses. The cookie lands in the browser:
 
 ```bash
 # A Student and a lesson they are enrolled in.
-sqlite3 data.db "select e.user_id, c.slug, l.id from enrollments e
-  join courses c on c.id = e.course_id join modules m on m.course_id = c.id
-  join lessons l on l.module_id = m.id limit 1"
+IFS='|' read -r USER_ID SLUG LESSON_ID < <(sqlite3 data.db "select e.user_id,
+  c.slug, l.id from enrollments e join courses c on c.id = e.course_id
+  join modules m on m.course_id = c.id join lessons l on l.module_id = m.id
+  limit 1")
 
 agent-browser open http://localhost:5173/
-agent-browser eval "fetch('/api/switch-user', {method: 'POST', body: new URLSearchParams({userId: '5'})}).then(r => r.status)"
-agent-browser open http://localhost:5173/courses/<slug>/lessons/<id>
+agent-browser eval "fetch('/api/switch-user', {method: 'POST', body: new URLSearchParams({userId: '$USER_ID'})}).then(r => r.status)"
+agent-browser open "http://localhost:5173/courses/$SLUG/lessons/$LESSON_ID"
 ```
 
 `/api/set-dev-country` takes `country` the same way.
