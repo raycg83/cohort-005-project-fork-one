@@ -160,8 +160,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Claude Code
-        run: npm install -g @anthropic-ai/claude-code
+      - name: Cache agent-browser's Chromium
+        # About 370 MB. `agent-browser install` skips the download when the
+        # cache has it. The key is the pinned version below: bump both.
+        uses: actions/cache@v4
+        with:
+          path: ~/.agent-browser/browsers
+          key: agent-browser-0.42.0-${{ runner.os }}
+
+      - name: Install Claude Code and agent-browser
+        # agent-browser is how the agent checks the UI and takes its
+        # screenshots (docs/agents/agent-browser.md).
+        run: |
+          npm install -g @anthropic-ai/claude-code agent-browser@0.42.0
+          agent-browser install
 
       - name: Migrate and seed the database
         # The pre-commit hook runs on every commit the agent makes, and the
@@ -187,6 +199,9 @@ jobs:
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           OUTPUT_DIR: ${{ runner.temp }}
+          # `git checkout -B` above puts the PR head in the reflog, so without
+          # this `npm run test:mutation` would grade only the review's commits.
+          MUTATE_BASE: origin/${{ github.event.pull_request.base.ref }}
         run: npx tsx .sandcastle/agent-workflows/review/review.ts
 
       - name: Push the review's fixes

@@ -8,8 +8,8 @@
  *
  * A line is "touched" if one of these is true:
  * - A commit added or changed it after your diff base: the commit you last
- *   reset to with `npm run reset <slug>`, not `main`. See `findDiffBase`
- *   below.
+ *   reset to with `npm run reset <slug>`, not `main`, or the merge base with
+ *   `$MUTATE_BASE` when that is set. See `findDiffBase` below.
  * - It is staged or unstaged in the work tree now.
  * - It is in an untracked file. A new file is yours, so every line counts.
  *
@@ -92,8 +92,14 @@ function git(args: string[], { optional = false } = {}): string[] {
  * If not, it is the merge base with `origin/main`, then with `main`. A clone
  * with neither gets null. The script then examines only the uncommitted
  * changes, which is still a usable result.
+ *
+ * MUTATE_BASE overrides all of this with a ref of your choosing. CI sets it:
+ * a workflow that runs `git checkout -B` at a PR's head puts that head in the
+ * reflog, and the base would then hide the whole PR.
  */
 function findDiffBase(): string | null {
+  const override = process.env.MUTATE_BASE;
+  if (override) return git(["merge-base", "HEAD", override])[0] ?? null;
   const branch = git(["symbolic-ref", "--quiet", "--short", "HEAD"], {
     optional: true,
   })[0];

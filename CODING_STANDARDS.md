@@ -44,7 +44,18 @@ change to how the module stores its data leaves its tests alone.
 
 ## Keep files under 5000 tokens
 
-Keep every file under 5000 tokens.
+Keep every file under 5000 tokens. A file listed in
+`scripts/file-tokens-baseline.json` was already over and may stay there, but
+it may not grow: put new code in a new file. Splitting it is a ticket of its
+own.
+
+## A module that reads the database takes it as an argument
+
+The clock's rule, applied to the database. A module that imports the global
+`db` cannot be tested through its entry points, so its queries end up tested
+by mocking, or not at all. Take the database as an argument and bind the app's
+`db` in the entry point, as `instructor-analytics` does. See
+[app/modules/README.md](./app/modules/README.md).
 
 ## Wrap related writes in a transaction
 
@@ -106,6 +117,21 @@ const [count, setCount] = useState(rows.length);
 const [items, setItems] = useState(rows);
 const count = items.length;
 ```
+
+## State seeded from loader data resets when its source changes
+
+`useState(note?.body)` reads its argument once. React keeps the component, and
+its state, when the route navigates to another record, so the old value
+stays. Key the component by the record it edits (`<LessonNote
+key={lesson.id} />`), so a new record mounts a new component. The lesson note
+kept the previous lesson's draft, and Save wrote it into the wrong lesson.
+
+## Moved code meets the standards it lands under
+
+A move is its own commit, with no other change in it, so a reviewer can tell
+the move from the edit. The code it moves becomes this change's code. Bring it
+up to these standards in the same PR. When a fix is too big for the PR, say so
+in the PR body and file a ticket for it.
 
 ## A comment explains why
 
