@@ -7,14 +7,42 @@ built for exactly this — one command per action, an answer on stdout.
 
 ## Once, per machine
 
+The factory workflows install it for you. On your own machine:
+
 ```bash
 npm install -g agent-browser
 agent-browser install
 ```
 
+## Starting the app and signing in
+
+Start the dev server and wait for it to answer, rather than sleeping a fixed
+time:
+
+```bash
+(npm run dev > /tmp/dev.log 2>&1 &)
+until curl -sf -o /dev/null http://localhost:5173/; do sleep 0.5; done
+```
+
+Most pages need a user in the session. Pick one from the seeded database, then
+post to the route the DevUI panel uses. The cookie lands in the browser:
+
+```bash
+# A Student and a lesson they are enrolled in.
+sqlite3 data.db "select e.user_id, c.slug, l.id from enrollments e
+  join courses c on c.id = e.course_id join modules m on m.course_id = c.id
+  join lessons l on l.module_id = m.id limit 1"
+
+agent-browser open http://localhost:5173/
+agent-browser eval "fetch('/api/switch-user', {method: 'POST', body: new URLSearchParams({userId: '5'})}).then(r => r.status)"
+agent-browser open http://localhost:5173/courses/<slug>/lessons/<id>
+```
+
+`/api/set-dev-country` takes `country` the same way.
+
 ## Asking your own question
 
-Start the app with `npm run dev` first. The examples below use
+Start the app first (above). The examples below use
 `http://localhost:5173`, the dev server's default address — if `npm run dev`
 printed a different one, use that.
 

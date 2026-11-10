@@ -1,0 +1,17 @@
+{
+  "app/lib/refunds.server.test.ts": 6267,
+  "app/lib/refunds.server.ts": 6390,
+  "app/modules/instructor-analytics/lib/instructor-analytics.ts": 8032,
+  "app/modules/instructor-analytics/tests/instructor-analytics.test.ts": 9309,
+  "app/routes/courses.$slug.lessons.$lessonId.tsx": 14201,
+  "app/routes/courses.$slug.tsx": 8807,
+  "app/routes/instructor.$courseId.lessons.$lessonId.quiz.tsx": 8767,
+  "app/routes/instructor.$courseId.tsx": 17799,
+  "app/routes/instructor.analytics.tsx": 9832,
+  "request-logger/README.md": 5104,
+  "request-logger/agents.test.ts": 13654,
+  "request-logger/agents.ts": 13685,
+  "request-logger/proxy.ts": 5404,
+  "request-logger/render.ts": 7464,
+  "scripts/seed.ts": 23214
+}

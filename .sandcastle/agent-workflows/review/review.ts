@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
 import * as sandcastle from "@ai-hero/sandcastle";
 import { noSandbox } from "@ai-hero/sandcastle/sandboxes/no-sandbox";
@@ -7,6 +8,7 @@ import { claudeAgent, required, writeJson } from "../shared/common";
 import { extractionPrompt } from "../shared/extraction-prompt";
 import { runWithExtraction } from "../shared/run-with-extraction";
 import { diffLines } from "./diff-lines";
+import { insertLeftFindings, leftFindings } from "./left-findings";
 import { reviewSchema } from "./review-schema";
 
 const BASE_REF = required("BASE_REF");
@@ -35,16 +37,36 @@ const git = (...args: string[]): string =>
 // The diff after the agent's commits: the comments land on that.
 const hunks = diffLines(git("diff", `origin/${BASE_REF}...HEAD`));
 const { comments: found }: z.infer<typeof reviewSchema> = result.output;
-const comments = found.filter(({ path: file, line }) => {
-  if (hunks.get(file)?.has(line)) return true;
-  console.error(`Dropping the comment on ${file}:${line}: not in the diff.`);
-  return false;
-});
+const inDiff = ({ path: file, line }: { path: string; line: number }) =>
+  hunks.get(file)?.has(line) ?? false;
+const comments = found.filter(inDiff);
+const outside = found.filter((comment) => !inDiff(comment));
+for (const { path: file, line } of outside) {
+  console.error(
+    `${file}:${line} is not in the diff: listing it in the verdict.`
+  );
+}
+
+// The agent's verdict lists what it fixed. What it left is listed here, from
+// the same findings the inline comments come from, so each is written once.
+const VERDICT = "/tmp/review-verdict.md";
+if (existsSync(VERDICT)) {
+  const verdict = readFileSync(VERDICT, "utf8");
+  writeFileSync(
+    VERDICT,
+    insertLeftFindings(verdict, leftFindings(comments, outside))
+  );
+}
 
 // The request body for POST /repos/{owner}/{repo}/pulls/{n}/reviews.
 writeJson("review-comments.json", {
   commit_id: git("rev-parse", "HEAD").trim(),
   event: "COMMENT",
   body: "The findings this review left for you, on their lines. The verdict is in its own comment.",
-  comments: comments.map((comment) => ({ ...comment, side: "RIGHT" })),
+  comments: comments.map(({ path: file, line, body }) => ({
+    path: file,
+    line,
+    body,
+    side: "RIGHT",
+  })),
 });

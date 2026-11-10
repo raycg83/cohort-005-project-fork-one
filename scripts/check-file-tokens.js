@@ -1,6 +1,12 @@
 // Fails when a file is too big for an agent to read and edit in one go.
 // Tokens are estimated as bytes / 4, which is close enough for code.
 // Usage: node scripts/check-file-tokens.js <file>...
+//
+// Files that were already over the limit are listed in
+// file-tokens-baseline.json with their size then. Such a file passes while it
+// does not grow, so a ticket that touches it is not forced into splitting it:
+// each split is its own ticket and PR. When you split one, delete its entry.
+// FILE_TOKENS_BASELINE points the check at another baseline (the tests).
 
 import { readFileSync } from "node:fs";
 
@@ -15,6 +21,12 @@ const IGNORED = [
   /^\.github\/workflows\/[^/]+\.yml$/,
 ];
 
+const BASELINE_PATH =
+  process.env.FILE_TOKENS_BASELINE ??
+  new URL("./file-tokens-baseline.json", import.meta.url);
+/** @type {Record<string, number>} */
+const baseline = JSON.parse(readFileSync(BASELINE_PATH, "utf8"));
+
 const isBinary = (contents) => contents.subarray(0, 8000).includes(0);
 
 const oversized = process.argv
@@ -27,15 +39,25 @@ const oversized = process.argv
     file,
     tokens: Math.ceil(contents.length / BYTES_PER_TOKEN),
   }))
-  .filter(({ tokens }) => tokens > MAX_TOKENS);
+  .filter(({ tokens }) => tokens > MAX_TOKENS)
+  .filter(({ file, tokens }) => tokens > (baseline[file] ?? 0));
 
 if (oversized.length > 0) {
   console.error(`These files are over ${MAX_TOKENS} tokens (bytes / 4):\n`);
   for (const { file, tokens } of oversized) {
-    console.error(`  ${file}: ~${tokens} tokens`);
+    const before = baseline[file];
+    console.error(
+      before
+        ? `  ${file}: ~${tokens} tokens, up from ~${before} in the baseline`
+        : `  ${file}: ~${tokens} tokens`
+    );
   }
   console.error(`
-Split each file before you commit. Do not delete code or squash it onto fewer
+A file in scripts/file-tokens-baseline.json may stay over the limit, but it may
+not grow: move what you added into a new file instead of splitting the whole
+file. Never raise a baseline entry.
+
+Otherwise, split each file before you commit. Do not delete code or squash it onto fewer
 lines to get under the limit.
 
 How to split:
