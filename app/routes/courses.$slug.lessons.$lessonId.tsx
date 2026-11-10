@@ -1256,9 +1256,6 @@ function FullLesson({
             />
           )}
 
-          {/* Note — under the video, so the Student can write while they watch */}
-          {currentUserId && <LessonNote note={note} />}
-
           {/* Lesson Content */}
           {contentHtml && (
             <div
@@ -1332,6 +1329,8 @@ function FullLesson({
               )}
             </div>
           )}
+
+          {currentUserId && <LessonNote key={lesson.id} note={note} />}
 
           {/* Questions & Discussion — confidential to people with access */}
           <CommentThread
