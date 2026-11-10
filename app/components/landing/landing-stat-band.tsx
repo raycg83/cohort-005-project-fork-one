@@ -7,7 +7,7 @@ const ICONS: Record<LandingStatKey, LucideIcon> = {
   pace: Clock,
 };
 
-export function LandingStats({ stats }: { stats: LandingStat[] }) {
+export function LandingStatBand({ stats }: { stats: LandingStat[] }) {
   return (
     <section className="border-y border-border bg-muted/50 py-12">
       <div className="mx-auto grid max-w-6xl grid-cols-1 gap-8 px-6 sm:grid-cols-3">

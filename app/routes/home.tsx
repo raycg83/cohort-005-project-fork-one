@@ -13,7 +13,7 @@ import { BookOpen, ArrowRight, User, Moon, Sun } from "lucide-react";
 import { CourseImage } from "~/components/course-image";
 import { DevUI } from "~/components/dev-ui";
 import { LandingHero } from "~/components/landing/landing-hero";
-import { LandingStats } from "~/components/landing/landing-stats";
+import { LandingStatBand } from "~/components/landing/landing-stat-band";
 import { LandingFooter } from "~/components/landing/landing-footer";
 import { landingStats } from "~/modules/landing";
 import { getCurrentUserId, getDevCountry } from "~/lib/session";
@@ -236,7 +236,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         signedIn={currentUser !== null}
       />
 
-      <LandingStats stats={stats} />
+      <LandingStatBand stats={stats} />
 
       {featuredCourses.length > 0 && (
         <section className="mx-auto max-w-6xl px-6 py-20">
