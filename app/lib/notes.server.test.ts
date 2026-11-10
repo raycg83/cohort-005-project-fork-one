@@ -93,7 +93,7 @@ describe("saving a Note", () => {
       saveNote(db, base.user.id, lessonIds[0], "a".repeat(2001), NOW)
     ).toEqual({
       ok: false,
-      error: "Note must be 2000 characters or fewer",
+      error: "Your note is over 2,000 characters, so it was not saved.",
     });
     expect(getNote(db, base.user.id, lessonIds[0])).toBeUndefined();
   });
@@ -101,7 +101,7 @@ describe("saving a Note", () => {
   it("refuses a Note that is only whitespace", () => {
     expect(saveNote(db, base.user.id, lessonIds[0], "   ", NOW)).toEqual({
       ok: false,
-      error: "Write something before saving your note",
+      error: "Write something before saving your note.",
     });
   });
 

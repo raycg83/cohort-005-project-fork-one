@@ -3,7 +3,7 @@ import * as schema from "~/db/schema";
 import { and, desc, eq } from "drizzle-orm";
 import { courses, lessons, modules, notes } from "~/db/schema";
 import { savedLessonColumns } from "~/lib/saved-lesson.server";
-import { MAX_NOTE_LENGTH } from "~/lib/notes";
+import { checkNoteBody } from "~/lib/notes";
 import { plainText } from "~/lib/text";
 
 // Nothing outside the owning Student's Lesson page and Saved page may read a
@@ -41,16 +41,9 @@ export function saveNote(
   body: string,
   now: Date
 ): SaveNoteResult {
-  const trimmed = plainText(body.trim());
-  if (trimmed.length === 0) {
-    return { ok: false, error: "Write something before saving your note" };
-  }
-  if (trimmed.length > MAX_NOTE_LENGTH) {
-    return {
-      ok: false,
-      error: `Note must be ${MAX_NOTE_LENGTH} characters or fewer`,
-    };
-  }
+  const checked = checkNoteBody(body);
+  if (!checked.ok) return checked;
+  const trimmed = plainText(checked.body);
 
   const at = now.toISOString();
   const note = db
