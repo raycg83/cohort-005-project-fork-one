@@ -296,7 +296,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </section>
       )}
 
-      <LandingFooter />
+      <LandingFooter signedIn={currentUser !== null} />
 
       <DevUI
         users={users}
