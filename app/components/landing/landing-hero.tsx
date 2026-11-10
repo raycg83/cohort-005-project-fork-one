@@ -4,7 +4,6 @@ import { Button } from "~/components/ui/button";
 import { CourseImage } from "~/components/course-image";
 
 export type HeroCourse = {
-  id: number;
   title: string;
   slug: string;
   coverImageUrl: string | null;
