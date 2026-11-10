@@ -17,11 +17,10 @@ export function LessonNote({
 }: {
   note: { body: string; updatedAt: string } | null;
 }) {
-  const fetcher = useFetcher<{ ok: boolean; error?: string }>();
+  const fetcher = useFetcher();
   const [body, setBody] = useState(note?.body ?? "");
   const draft = describeNoteDraft(body);
   const isSaving = fetcher.state !== "idle";
-  const error = fetcher.state === "idle" ? fetcher.data?.error : undefined;
 
   return (
     <Card className="mb-8">
@@ -46,7 +45,7 @@ export function LessonNote({
             >
               {isSaving ? "Saving..." : "Save note"}
             </Button>
-            <SaveStatus error={error} updatedAt={note?.updatedAt} />
+            {note && <LastEdited updatedAt={note.updatedAt} />}
             <span
               className={cn(
                 "ml-auto text-xs",
@@ -75,15 +74,7 @@ function LessonNoteHeader() {
   );
 }
 
-function SaveStatus({
-  error,
-  updatedAt,
-}: {
-  error: string | undefined;
-  updatedAt: string | undefined;
-}) {
-  if (error) return <span className="text-xs text-destructive">{error}</span>;
-  if (!updatedAt) return null;
+function LastEdited({ updatedAt }: { updatedAt: string }) {
   return (
     <span suppressHydrationWarning className="text-xs text-muted-foreground">
       Last edited {formatRelativeTime(updatedAt)}

@@ -933,10 +933,10 @@ export async function action({ params, request }: Route.ActionArgs) {
       return { ok: true, bookmarked };
     }
 
+    // The editor disables Save for a body checkNoteBody refuses, so only a
+    // hand-made post lands here.
     const parsed = parseFormData(formData, saveNoteSchema);
-    if (!parsed.success) {
-      return { ok: false, error: parsed.errors.body };
-    }
+    if (!parsed.success) throw data("Note body missing", { status: 400 });
     const saved = saveNote(
       db,
       currentUserId,
@@ -944,7 +944,7 @@ export async function action({ params, request }: Route.ActionArgs) {
       parsed.data.body,
       new Date()
     );
-    if (!saved.ok) return saved;
+    if (!saved.ok) throw data(saved.error, { status: 400 });
     return { ok: true };
   }
 
